@@ -7,6 +7,9 @@
 #include <algorithm>
 #include <fstream>
 
+#include "pugixml.hpp"
+
+#include <direct.h>
 //todo
 /*
 
@@ -46,10 +49,12 @@ namespace eegpp {
             *       potentially overwriting existing configurations. Always ensure that reinitialization
             *       is intended to avoid data loss.
         */
-        static void init(const std::string& eegRawDataName) {
+        void init(const std::string& eegRawDataName) {
+            // todo 这里目前只能处理当前文件夹下的文件
             if (!isValidFilename(eegRawDataName)) {
                 throw std::invalid_argument("Invalid EEG file format.");
             }
+            readRawData(eegRawDataName);
             std::filesystem::create_directories(".eegv"); // 存储关于版本控制系统配置的信息，例如用户设置和系统行为配置。
             std::filesystem::create_directories("eegobjs"); // 用于存储所有EEG数据文件的对象，可能是按哈希值命名的文件，这些对象代表不同版本的数据文件。
             std::filesystem::create_directories("refs"); // 用于存储引用到各个EEG数据文件的最新或特定版本的指针，类似于Git中的分支引用。
@@ -82,6 +87,63 @@ namespace eegpp {
             return std::any_of(validExtensions.begin(), validExtensions.end(),
                                [&name](const std::string& ext) { return name.find(ext) != std::string::npos; });
         }
+
+        void readRawData(const std::string& eegRawDataName) {
+            if(fileType(eegRawDataName) == 0) {
+                // xdf文件
+                readXdfFile(eegRawDataName);
+            }
+            else {
+                // 其他文件
+                // todo
+            }
+        }
+
+
+        void readXdfFile(const std::string& eegRawDataName) {
+
+//            // 打印当前工作目录
+//            char buffer[256];
+//            getcwd(buffer, 256);
+//            std::cout << "Current working directory: " << buffer << std::endl;
+
+
+
+            pugi::xml_document doc;
+
+            // import todo 读取eeg xdf的时候 乱码导致xdf无法读取
+
+            pugi::xml_parse_result result = doc.load_file(eegRawDataName.c_str());
+            if (!result) {
+                throw std::runtime_error("Failed to parse EEG file.");
+            }
+
+            pugi::xml_node root = doc.child("info");
+            if (!root) {
+                throw std::runtime_error("Invalid EEG file format.");
+            }
+
+            // todo 读取电极位置等信息
+
+        }
+
+        /*
+         * 检查文件类型
+         * 0 xdf
+         */
+        static int fileType(const std::string& filename) {
+            if(isXdfFile(filename)) return 0;
+            return 1;
+        }
+
+        static bool isXdfFile(const std::filesystem::path& filename) {
+            std::string extension = filename.extension().string();
+            std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
+
+            // 检查是否为.xdf文件
+            return extension == ".xdf";
+        }
+
     };
 
     void showHelp() {
@@ -107,7 +169,7 @@ int main() {
     using namespace eegpp;
     std::string input;
     std::cout << "EEGPP started. Type 'help' for a list of commands." << std::endl;
-
+    EEGRepo repo; // Create an instance of the EEGRepo class
     while (true) {
         std::cout << "EEGPP > ";
         std::getline(std::cin, input);
@@ -118,7 +180,7 @@ int main() {
             if (commands.empty()) continue;
 
             if (commands[0] == "init" && commands.size() == 2) {
-                EEGRepo::init(commands[1]);
+                repo.init(commands[1]);
             } else if (commands[0] == "help") {
                 showHelp();
             } else if (commands[0] == "quit") {

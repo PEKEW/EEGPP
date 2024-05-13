@@ -7,4 +7,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 
 add_executable(EEGPP
-        main.cpp)
+        main.cpp
+        pugixml/pugixml.cpp)
+
+target_include_directories(EEGPP PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/pugixml)
